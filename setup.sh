@@ -19,6 +19,25 @@ if ! command -v docker >/dev/null 2>&1; then
   exit 1
 fi
 
+# Docker デーモンへの接続権限を確認
+if ! docker info >/dev/null 2>&1; then
+  echo "❌ Docker デーモンへの接続に失敗しました。" >&2
+  echo "" >&2
+  if groups | grep -qw docker; then
+    echo "   Docker グループには所属していますが、デーモンが起動していない可能性があります。" >&2
+    echo "   以下を実行してください:" >&2
+    echo "     sudo systemctl start docker" >&2
+  else
+    echo "   現在のユーザーに Docker の実行権限がありません。" >&2
+    echo "   以下を実行してから、ログアウト → 再ログインしてください:" >&2
+    echo "     sudo usermod -aG docker \$USER" >&2
+    echo "" >&2
+    echo "   再ログイン後、再度このスクリプトを実行してください:" >&2
+    echo "     ./setup.sh" >&2
+  fi
+  exit 1
+fi
+
 if ! docker compose version >/dev/null 2>&1; then
   echo "❌ 'docker compose' (Compose v2) が見つかりません。Docker を最新版に更新してください。" >&2
   exit 1

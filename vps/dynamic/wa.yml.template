@@ -1,0 +1,22 @@
+# Traefik 動的設定テンプレート（VPS 側）。
+# setup-vps.sh が .env.vps の値を埋め込んで ./dynamic/wa.yml を生成します。
+# DOMAIN 宛のリクエストを丸ごと自宅サーバー(WorkAdventure の Traefik :80)へ転送します。
+http:
+  routers:
+    # HTTPS（TLS は Let's Encrypt でこの VPS が終端）
+    wa:
+      rule: "Host(`${DOMAIN}`)"
+      entryPoints:
+        - websecure
+      service: wa-home
+      tls:
+        certResolver: myresolver
+
+  services:
+    wa-home:
+      loadBalancer:
+        # 自宅サーバーの Traefik（素の HTTP :80）。WireGuard 越しに到達。
+        servers:
+          - url: "http://${HOME_WG_IP}:80"
+        # Host ヘッダ(= DOMAIN)を保持。自宅 Traefik はこの Host で振り分けるため必須。
+        passHostHeader: true

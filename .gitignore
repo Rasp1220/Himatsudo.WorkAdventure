@@ -4,6 +4,12 @@
 # 永続データ（Let's Encrypt 証明書など）
 /wa/
 
+# VPS(玄関) 側の生成物・秘密情報
+/vps/.env.vps
+/vps/dynamic/wa.yml
+/vps/letsencrypt/
+/vps/wg-home.conf
+
 # OS / エディタの一時ファイル
 .DS_Store
 *.swp

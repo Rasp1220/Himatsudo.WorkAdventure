@@ -58,7 +58,48 @@ cd Himatsudo.WorkAdventure
 
 WorkAdventure は音声・ビデオ（WebRTC）のために **HTTPS + 有効な証明書**が前提です。
 自宅サーバーでは「どうやって HTTPS でアクセスするか」を最初に決めます。
-`.env` の `DOMAIN` を変えるだけで切り替えられます。
+`.env` の `DOMAIN`（と `COMPOSE_FILE`）を変えるだけで切り替えられます。
+
+| 方法 | ポート開放 | TLS 終端 | 向いているケース |
+|------|:--------:|---------|------------------|
+| **VPS 玄関（推奨）** | 不要 | VPS | 自宅でポート開放できない／固定 IP が無い。自前の VPS とドメインがある |
+| A. 独自ドメイン+LE | 必要(80/443) | 自宅 | 自宅でポート開放できる |
+| B. ローカル検証 | 不要 | 自己署名 | まず LAN 内で動作確認したい |
+| C. Cloudflare Tunnel | 不要 | Cloudflare | VPS を持たず Cloudflare を使う |
+
+### ★ VPS を玄関（リバースプロキシ）にして公開する【推奨】
+
+自宅でポート開放できない場合の本命構成です。VPS を玄関にして HTTPS を終端し、
+トンネル越しに自宅の WorkAdventure へ転送します。トンネルは **Tailscale（推奨）**
+または素の WireGuard。自宅は受信ポート開放不要です。
+
+```
+利用者 ──https://wa.example.com（DNS→VPSのグローバルIP）──▶  VPS(玄関)
+                                                            Traefik: Let's Encrypt で TLS 終端
+                                                            │ トンネル(内部IP)で自宅へ
+                                                            ▼ http://<自宅の内部IP>:80
+                                                          自宅サーバー: WorkAdventure 一式
+                                                            Traefik は素のHTTP :80 で配信（ACMEなし）
+```
+
+> **⚠️ DNS の A レコードには VPS の「グローバル IP」を設定します。**
+> Tailscale/WireGuard の内部 IP（`100.x` / `10.8.x`）はトンネル内専用で外から繋がりません。
+> 内部 IP は「VPS が自宅へ転送するときだけ」使います。
+
+自宅側はルートの `.env` を次のようにして起動するだけです。
+
+```ini
+DOMAIN=wa.example.com   # VPS に向けた公開ドメイン（A レコードは VPS のグローバルIP）
+ACME_EMAIL=             # TLS は VPS が終端するので空でOK
+COMPOSE_FILE=docker-compose.yaml:docker-compose.behind-proxy.yaml
+```
+
+```bash
+./start.sh
+```
+
+VPS 側の構築（Tailscale/WireGuard トンネルと Traefik 玄関）と全体の設定順序は
+**[`vps/README.md`](./vps/README.md)** に手順をまとめています。
 
 ### A. 独自ドメイン ＋ Let's Encrypt（インターネット公開）
 

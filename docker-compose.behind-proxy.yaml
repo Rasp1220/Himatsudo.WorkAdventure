@@ -1,0 +1,36 @@
+## VPS リバースプロキシ(玄関)の背後で WorkAdventure を動かすためのオーバーレイ設定。
+##
+## docker-compose.yaml と一緒に読み込んで使います:
+##   docker compose -f docker-compose.yaml -f docker-compose.behind-proxy.yaml up -d
+## （.env の COMPOSE_FILE を設定しておけば ./start.sh だけでOK）
+##
+## 想定構成:
+##   インターネット ──HTTPS──▶ VPS(Traefik で TLS 終端) ──WireGuard──▶ 自宅(この設定)
+##
+## ポイント:
+##  - HTTPS の終端は VPS 側で行うため、自宅 Traefik の Let's Encrypt と
+##    HTTP→HTTPS リダイレクトを無効化し、:80 で素の HTTP を配信します。
+##  - VPS はこの :80 をバックエンド(http://10.8.0.2:80)として転送します。
+##  - 自宅側は受信ポート開放不要（自宅→VPS への WireGuard アウトバウンド接続のみ）。
+##  - /ws/ や /api, /map-storage などのサブパス振り分けは、この自宅 Traefik が
+##    そのまま処理します（VPS 側は DOMAIN 宛を丸ごとここへ流すだけ）。
+services:
+  reverse-proxy:
+    # 元の command から「HTTP→HTTPS リダイレクト」の2行だけを取り除いたもの。
+    # これで :80 がアプリをそのまま配信する（VPS の転送先）。
+    # 他のエントリポイント/証明書リゾルバ定義はそのまま残し、ラベルの警告を防ぐ。
+    command:
+      - --log.level=${LOG_LEVEL}
+      - --providers.docker
+      - --providers.docker.exposedbydefault=false
+      - --entryPoints.web.address=:80
+      - --entryPoints.websecure.address=:443
+      - --entryPoints.grpc.address=:50051
+      - --certificatesresolvers.myresolver.acme.email=${ACME_EMAIL}
+      - --certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json
+      - --certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web
+    # WireGuard トンネル(VPS=10.8.0.1)からのみ :80 に到達できれば十分なので、
+    # ホストの全インターフェースに 80 を晒したくない場合は、下のように
+    # WireGuard インターフェースの IP に :80 をバインドしてください（任意）。
+    #ports:
+    #  - "10.8.0.2:80:80"

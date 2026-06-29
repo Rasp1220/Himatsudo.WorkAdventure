@@ -1,0 +1,34 @@
+## VPS(玄関)側の Traefik リバースプロキシ。
+##
+##   インターネット ──HTTPS:443──▶ この Traefik(TLS 終端 / Let's Encrypt)
+##                                   │ WireGuard 10.8.0.0/24
+##                                   ▼ http://${HOME_WG_IP}:80
+##                                 自宅サーバー(WorkAdventure 本体)
+##
+## - network_mode: host にすることで、ホストの WireGuard インターフェース経由で
+##   自宅(10.8.0.2)へそのまま到達できます（追加の NAT/forward 設定が不要）。
+## - 動的設定 ./dynamic/wa.yml は setup-vps.sh が .env.vps から生成します。
+services:
+  reverse-proxy:
+    image: traefik:v3.6.1
+    network_mode: host
+    command:
+      - --log.level=${LOG_LEVEL:-WARN}
+      - --providers.file.directory=/dynamic
+      - --providers.file.watch=true
+      # Entry points
+      - --entryPoints.web.address=:80
+      - --entryPoints.websecure.address=:443
+      # HTTP → HTTPS の全体リダイレクト
+      - --entrypoints.web.http.redirections.entryPoint.to=websecure
+      - --entrypoints.web.http.redirections.entryPoint.scheme=https
+      # Let's Encrypt（HTTP-01 チャレンジ）
+      - --certificatesresolvers.myresolver.acme.email=${ACME_EMAIL}
+      - --certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json
+      - --certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web
+      # テスト中は下のステージング行のコメントを外すとレート制限を避けられます
+      #- --certificatesresolvers.myresolver.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory
+    volumes:
+      - ./dynamic:/dynamic:ro
+      - ./letsencrypt:/letsencrypt
+    restart: ${RESTART_POLICY:-unless-stopped}

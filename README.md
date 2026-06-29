@@ -87,12 +87,47 @@ Traefik が自動で Let's Encrypt 証明書を取得します。
 > 実 IP やローカル DNS 名を使い、各端末の hosts でその名前をサーバー IP に向けてください。
 > （正規のビデオ通話には A の独自ドメイン構成を推奨します）
 
-### C. ポート開放できない場合（Cloudflare Tunnel など）
+### C. Cloudflare Tunnel で公開する（ポート開放不要・無料）
 
-ルーターを触れない・固定 IP が無い場合は、Cloudflare Tunnel や Tailscale Funnel 等で
-外部に HTTPS 公開し、トンネルの転送先をこのサーバーの 80 番に向ける方法もあります。
-その場合 `.env` の `DOMAIN` は公開ドメインに設定します（証明書はトンネル側で終端するため
-Traefik 側はそのままで構いません）。
+ルーターのポート開放ができない / 固定 IP が無い場合におすすめです。Cloudflare が
+HTTPS を終端し、サーバーからアウトバウンド接続するトンネルで公開します。
+
+このリポジトリには専用のオーバーレイ設定 `docker-compose.cloudflare.yaml` を同梱しており、
+有効化すると `cloudflared` コンテナが追加され、Traefik は Let's Encrypt を使わず
+:80 で配信する構成に切り替わります。
+
+**前提:** 独自ドメイン（例 `example.com`）を Cloudflare に追加し、ネームサーバーを
+Cloudflare に向けてある（＝フルセットアップ。無料プランで可）こと。
+
+1. **トンネルを作成**（Cloudflare Zero Trust ダッシュボード → Networks → Tunnels）
+   - 「Cloudflared」タイプでトンネルを作成し、表示される **トークン**を控える
+2. **公開ホスト名を設定**（同トンネルの Public Hostnames）
+   - Subdomain: `wa` / Domain: `example.com`（→ `wa.example.com`）
+   - Service: **`HTTP`** / URL: **`reverse-proxy:80`**
+   - これで `wa` の CNAME レコードが自動作成されます（手動追加不要）
+3. **`.env` を編集**
+   ```ini
+   DOMAIN=wa.example.com
+   # 次の2つのコメントを外す/設定する
+   COMPOSE_FILE=docker-compose.yaml:docker-compose.cloudflare.yaml
+   CLOUDFLARE_TUNNEL_TOKEN=<手順1で控えたトークン>
+   ```
+4. **起動**
+   ```bash
+   ./start.sh
+   ```
+
+`https://wa.example.com/` でアクセスできます（ACME_EMAIL は不要）。
+
+> **音声・画面共有について（重要）**
+> Cloudflare Tunnel は HTTP/HTTPS のみで、WebRTC の UDP 中継は通しません。
+> - **会議室（Jitsi エリア）** … 外部 Jitsi に直接つながるため、そのまま会話・画面共有できます。TURN 不要。
+> - **近接の会話・画面共有（人に近づくと開くバブル）** … ブラウザ間 P2P のため **TURN が必要**です。
+>   `.env` には無料の公開 TURN（Open Relay Project, 443/TCP・TLS 対応）を既定で設定済みなので、
+>   そのままでも中継されます（無料枠は月20GB）。本格運用では自前 TURN への変更を推奨します。
+>
+> カメラ映像（ビデオ）が不要な場合は、入室時やツールバーでカメラを OFF にすれば、
+> 音声と画面共有だけで利用できます（設定変更は不要）。
 
 ---
 
@@ -124,7 +159,8 @@ Traefik 側はそのままで構いません）。
 
 ```
 .
-├── docker-compose.yaml   WorkAdventure 一式の Compose 定義（公式 prod ベース）
+├── docker-compose.yaml            WorkAdventure 一式の Compose 定義（公式 prod ベース）
+├── docker-compose.cloudflare.yaml Cloudflare Tunnel 公開用オーバーレイ（任意）
 ├── .env.template         設定テンプレート（コミット対象）
 ├── .env                  実際の設定（秘密鍵入り・自動生成、git 管理外）
 ├── setup.sh              初期セットアップ（.env 作成・秘密鍵生成）

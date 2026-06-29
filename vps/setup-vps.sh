@@ -40,10 +40,9 @@ set -a
 set +a
 
 : "${DOMAIN:?DOMAIN が未設定です（.env.vps）}"
-if [ -z "${HOME_WG_IP:-}" ]; then
-  echo "❌ HOME_WG_IP が未設定です（.env.vps）。" >&2
-  echo "   Tailscale: 自宅サーバーで 'tailscale ip -4' を実行し、表示された 100.x.x.x を設定。" >&2
-  echo "   素WireGuard: 既定なら 10.8.0.2 を設定。" >&2
+if [ -z "${HOME_TS_IP:-}" ]; then
+  echo "❌ HOME_TS_IP が未設定です（.env.vps）。" >&2
+  echo "   自宅サーバーで 'tailscale ip -4' を実行し、表示された 100.x.x.x を設定してください。" >&2
   exit 1
 fi
 
@@ -52,9 +51,9 @@ fi
 # ---------------------------------------------------------------------------
 mkdir -p dynamic letsencrypt
 sed -e "s|\${DOMAIN}|${DOMAIN}|g" \
-    -e "s|\${HOME_WG_IP}|${HOME_WG_IP}|g" \
+    -e "s|\${HOME_TS_IP}|${HOME_TS_IP}|g" \
     dynamic/wa.yml.template > dynamic/wa.yml
-echo "  ✓ dynamic/wa.yml を生成しました（DOMAIN=${DOMAIN} → http://${HOME_WG_IP}:80）"
+echo "  ✓ dynamic/wa.yml を生成しました（DOMAIN=${DOMAIN} → http://${HOME_TS_IP}:80）"
 
 # acme.json は 600 でないと Traefik が拒否する
 touch letsencrypt/acme.json
@@ -65,11 +64,9 @@ echo "==================================================================="
 echo " VPS セットアップ完了"
 echo "-------------------------------------------------------------------"
 echo " DOMAIN     : ${DOMAIN}"
-echo " 転送先     : http://${HOME_WG_IP}:80 (WireGuard 越しの自宅サーバー)"
+echo " 転送先     : http://${HOME_TS_IP}:80 (Tailscale 越しの自宅サーバー)"
 echo "==================================================================="
 echo
 echo "次の順で進めてください:"
-echo "  1) トンネルを用意（未実施なら）:"
-echo "       Tailscale（推奨） … VPS と自宅で 'sudo tailscale up'"
-echo "       素WireGuard       … 'sudo ./setup-tunnel.sh'"
+echo "  1) Tailscale を用意（未実施なら）: VPS と自宅で 'sudo tailscale up'"
 echo "  2) ./start.sh          ... Traefik(玄関) を起動"

@@ -12,16 +12,13 @@ if [ ! -f .env.vps ] || [ ! -f dynamic/wa.yml ]; then
   echo
 fi
 
-# トンネル(Tailscale / 素WireGuard)の状態を軽く確認（任意）
-if command -v tailscale >/dev/null 2>&1 && tailscale status >/dev/null 2>&1; then
-  : # Tailscale 稼働中
-elif command -v wg >/dev/null 2>&1 && wg show wg0 >/dev/null 2>&1; then
-  : # 素WireGuard(wg0) 稼働中
-else
-  echo "⚠️  トンネルが起動していないようです。先に用意してください:"
-  echo "    Tailscale（推奨） … VPS と自宅で 'sudo tailscale up'"
-  echo "    素WireGuard       … 'sudo ./setup-tunnel.sh' → 'sudo wg-quick up wg0'"
-  echo
+# Tailscale の状態を軽く確認（任意）
+if command -v tailscale >/dev/null 2>&1; then
+  if ! tailscale status >/dev/null 2>&1; then
+    echo "⚠️  Tailscale が起動していないようです。"
+    echo "    VPS と自宅サーバーの両方で 'sudo tailscale up' を実行してください。"
+    echo
+  fi
 fi
 
 echo "⬇️  Docker イメージを取得します..."

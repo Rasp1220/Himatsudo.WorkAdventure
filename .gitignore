@@ -8,7 +8,6 @@
 /vps/.env.vps
 /vps/dynamic/wa.yml
 /vps/letsencrypt/
-/vps/wg-home.conf
 
 # OS / エディタの一時ファイル
 .DS_Store

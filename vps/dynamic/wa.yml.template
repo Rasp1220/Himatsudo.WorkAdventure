@@ -15,8 +15,8 @@ http:
   services:
     wa-home:
       loadBalancer:
-        # 自宅サーバーの Traefik（素の HTTP :80）。WireGuard 越しに到達。
+        # 自宅サーバーの Traefik（素の HTTP :80）。Tailscale 越しに到達。
         servers:
-          - url: "http://${HOME_WG_IP}:80"
+          - url: "http://${HOME_TS_IP}:80"
         # Host ヘッダ(= DOMAIN)を保持。自宅 Traefik はこの Host で振り分けるため必須。
         passHostHeader: true

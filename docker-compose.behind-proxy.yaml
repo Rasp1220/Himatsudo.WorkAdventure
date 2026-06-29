@@ -5,13 +5,13 @@
 ## （.env の COMPOSE_FILE を設定しておけば ./start.sh だけでOK）
 ##
 ## 想定構成:
-##   インターネット ──HTTPS──▶ VPS(Traefik で TLS 終端) ──WireGuard──▶ 自宅(この設定)
+##   インターネット ──HTTPS──▶ VPS(Traefik で TLS 終端) ──Tailscale──▶ 自宅(この設定)
 ##
 ## ポイント:
 ##  - HTTPS の終端は VPS 側で行うため、自宅 Traefik の Let's Encrypt と
 ##    HTTP→HTTPS リダイレクトを無効化し、:80 で素の HTTP を配信します。
-##  - VPS はこの :80 をバックエンド(http://10.8.0.2:80)として転送します。
-##  - 自宅側は受信ポート開放不要（自宅→VPS への WireGuard アウトバウンド接続のみ）。
+##  - VPS はこの :80 をバックエンド(http://<自宅のTailscale IP>:80)として転送します。
+##  - 自宅側は受信ポート開放不要（自宅→VPS への Tailscale アウトバウンド接続のみ）。
 ##  - /ws/ や /api, /map-storage などのサブパス振り分けは、この自宅 Traefik が
 ##    そのまま処理します（VPS 側は DOMAIN 宛を丸ごとここへ流すだけ）。
 services:
@@ -29,8 +29,8 @@ services:
       - --certificatesresolvers.myresolver.acme.email=${ACME_EMAIL}
       - --certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json
       - --certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web
-    # WireGuard トンネル(VPS=10.8.0.1)からのみ :80 に到達できれば十分なので、
-    # ホストの全インターフェースに 80 を晒したくない場合は、下のように
-    # WireGuard インターフェースの IP に :80 をバインドしてください（任意）。
+    # Tailscale トンネルからのみ :80 に到達できれば十分なので、ホストの全インター
+    # フェースに 80 を晒したくない場合は、下のように Tailscale インターフェースの
+    # IP（tailscale ip -4 の値）に :80 をバインドしてください（任意）。
     #ports:
-    #  - "10.8.0.2:80:80"
+    #  - "100.101.102.103:80:80"

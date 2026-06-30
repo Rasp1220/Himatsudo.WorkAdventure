@@ -98,11 +98,19 @@ for kv in "BASIC_AUTH_USERNAME=admin" "BASIC_AUTH_PASSWORD=" "BASIC_AUTH_USERS="
 done
 
 if grep -q "^BASIC_AUTH_USERS=" .env; then
-  BA_CURRENT_PASS="$(grep -E '^BASIC_AUTH_PASSWORD=' .env | head -n1 | cut -d= -f2- || true)"
-  if [ -z "$BA_CURRENT_PASS" ]; then
+  BA_CURRENT_USERS="$(grep -E '^BASIC_AUTH_USERS=' .env | head -n1 | cut -d= -f2- || true)"
+  # BASIC_AUTH_USERS（Traefik に渡す htpasswd 値）が空だと、basicauth ミドルウェアが
+  # 「ユーザー無し」で生成できず、他ルーターから
+  #   middleware "basicauth@docker" does not exist
+  # と見える。そのため PASSWORD の有無に関わらず USERS が空なら必ず生成する。
+  # （PASSWORD が手動設定済みならその値をハッシュ化し、空なら新規生成する）
+  if [ -z "$BA_CURRENT_USERS" ]; then
     BA_USERNAME="$(grep -E '^BASIC_AUTH_USERNAME=' .env | head -n1 | cut -d= -f2-)"
     BA_USERNAME="${BA_USERNAME:-admin}"
-    BA_PASS=$(gen_secret | head -c 16)
+    BA_PASS="$(grep -E '^BASIC_AUTH_PASSWORD=' .env | head -n1 | cut -d= -f2- || true)"
+    if [ -z "$BA_PASS" ]; then
+      BA_PASS=$(gen_secret | head -c 16)
+    fi
     BA_HASH=$(openssl passwd -apr1 "$BA_PASS")
     python3 - "$BA_PASS" "${BA_USERNAME}:${BA_HASH}" <<'PYEOF'
 import sys, re
@@ -118,9 +126,9 @@ content = re.sub(r'^BASIC_AUTH_USERS=.*', 'BASIC_AUTH_USERS=' + ba_users, conten
 with open('.env', 'w') as f:
     f.write(content)
 PYEOF
-    echo "  ✓ BASIC_AUTH_PASSWORD / BASIC_AUTH_USERS を自動生成しました"
+    echo "  ✓ BASIC_AUTH_USERS を生成しました（BASIC_AUTH_PASSWORD のハッシュ）"
   else
-    echo "  - BASIC_AUTH_PASSWORD は既に設定済み（変更しません）"
+    echo "  - BASIC_AUTH_USERS は既に設定済み（変更しません）"
   fi
 
   # 既存の .env で BASIC_AUTH_USERS の $ がエスケープされていない場合は $$ に正規化する。

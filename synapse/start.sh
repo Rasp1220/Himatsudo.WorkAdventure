@@ -41,9 +41,18 @@ pathlib.Path("/data/homeserver.yaml").write_text(out)
 PYEOF
 
 # 2. 署名鍵の生成（初回のみ）
+#    新しい Synapse イメージ（v1.140 等）には `generate_signing_key.py` という
+#    スクリプトは存在せず、コンソールスクリプト `generate_signing_key`
+#    （= python -m synapse._scripts.generate_signing_key）に置き換わっている。
+#    旧名のままだと "generate_signing_key.py: not found"（exit 127）で
+#    コンテナが起動できず再起動ループに陥るため、両対応にする。
 if [ ! -f /data/signing.key ]; then
   echo "synapse: generating signing key"
-  generate_signing_key.py -o /data/signing.key
+  if command -v generate_signing_key >/dev/null 2>&1; then
+    generate_signing_key -o /data/signing.key
+  else
+    "$PY" -m synapse._scripts.generate_signing_key -o /data/signing.key
+  fi
 fi
 
 # 所有者を Synapse 実行ユーザーに揃える（root 起動時のみ）

@@ -25,6 +25,36 @@ services:
       - --entryPoints.websecure.address=:443
       - --entryPoints.grpc.address=:50051
 
+  # Cloudflare 環境では myresolver（ACME）が存在しないため、各サービスの
+  # -ssl ルーターから certresolver 参照を空文字で上書きして ERR を消す。
+  # TLS 自体は Cloudflare 側で終端されるので証明書自動取得は不要。
+  play:
+    labels:
+      traefik.http.routers.play-ssl.tls.certresolver: ""
+      traefik.http.routers.play-ws-ssl.tls.certresolver: ""
+      traefik.http.routers.room-api.tls.certresolver: ""
+
+  back:
+    labels:
+      traefik.http.routers.back-ssl.tls.certresolver: ""
+
+  uploader:
+    labels:
+      traefik.http.routers.uploader-ssl.tls.certresolver: ""
+
+  icon:
+    labels:
+      traefik.http.routers.icon-ssl.tls.certresolver: ""
+      traefik.http.routers.lettericons-ssl.tls.certresolver: ""
+
+  map-storage:
+    labels:
+      traefik.http.routers.map-storage-ssl.tls.certresolver: ""
+
+  synapse:
+    labels:
+      traefik.http.routers.matrix-ssl.tls.certresolver: ""
+
   cloudflared:
     image: cloudflare/cloudflared:latest
     command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}

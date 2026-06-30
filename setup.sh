@@ -35,6 +35,11 @@ gen_secret() {
   fi
 }
 
+# .env から KEY の値（KEY=値 の右側）を取り出す。未定義なら空文字を返す。
+get_env() {
+  grep -E "^$1=" .env | head -n1 | cut -d= -f2- || true
+}
+
 # .env に "KEY=" が無ければ追記し、空のときだけ value を埋める。
 # （古いテンプレートから作った .env には項目自体が無いことがあるため、
 #   その場合は sed では埋められないので追記する。これを怠ると docker compose が
@@ -49,7 +54,7 @@ fill_if_empty() {
   fi
   # 現在の値を取得（KEY=... の右側）
   local current
-  current="$(grep -E "^${key}=" "$file" | head -n1 | cut -d= -f2- || true)"
+  current="$(get_env "$key")"
   if [ -z "$current" ]; then
     # 区切りに | を使い、value に / 等が含まれても安全に置換
     sed -i "s|^${key}=.*|${key}=${value}|" "$file"
@@ -77,12 +82,6 @@ fill_if_empty "SECRET_KEY"                        "$(gen_secret)"
 fill_if_empty "ROOM_API_SECRET_KEY"               "$(gen_secret)"
 fill_if_empty "MAP_STORAGE_AUTHENTICATION_PASSWORD" "$(gen_secret)"
 
-# Matrix / Synapse（チャット）用の秘密鍵・管理者パスワード
-fill_if_empty "MATRIX_ADMIN_PASSWORD"             "$(gen_secret | head -c 24)"
-fill_if_empty "MATRIX_REGISTRATION_SHARED_SECRET" "$(gen_secret)"
-fill_if_empty "MATRIX_MACAROON_SECRET"            "$(gen_secret)"
-fill_if_empty "MATRIX_FORM_SECRET"                "$(gen_secret)"
-
 # ---------------------------------------------------------------------------
 # 2b. Basic 認証の自動生成
 # ---------------------------------------------------------------------------
@@ -98,16 +97,16 @@ for kv in "BASIC_AUTH_USERNAME=admin" "BASIC_AUTH_PASSWORD=" "BASIC_AUTH_USERS="
 done
 
 if grep -q "^BASIC_AUTH_USERS=" .env; then
-  BA_CURRENT_USERS="$(grep -E '^BASIC_AUTH_USERS=' .env | head -n1 | cut -d= -f2- || true)"
+  BA_CURRENT_USERS="$(get_env BASIC_AUTH_USERS)"
   # BASIC_AUTH_USERS（Traefik に渡す htpasswd 値）が空だと、basicauth ミドルウェアが
   # 「ユーザー無し」で生成できず、他ルーターから
   #   middleware "basicauth@docker" does not exist
   # と見える。そのため PASSWORD の有無に関わらず USERS が空なら必ず生成する。
   # （PASSWORD が手動設定済みならその値をハッシュ化し、空なら新規生成する）
   if [ -z "$BA_CURRENT_USERS" ]; then
-    BA_USERNAME="$(grep -E '^BASIC_AUTH_USERNAME=' .env | head -n1 | cut -d= -f2-)"
+    BA_USERNAME="$(get_env BASIC_AUTH_USERNAME)"
     BA_USERNAME="${BA_USERNAME:-admin}"
-    BA_PASS="$(grep -E '^BASIC_AUTH_PASSWORD=' .env | head -n1 | cut -d= -f2- || true)"
+    BA_PASS="$(get_env BASIC_AUTH_PASSWORD)"
     if [ -z "$BA_PASS" ]; then
       BA_PASS=$(gen_secret | head -c 16)
     fi
@@ -156,11 +155,11 @@ fi
 # ---------------------------------------------------------------------------
 # 3. 設定内容の確認表示
 # ---------------------------------------------------------------------------
-DOMAIN_VAL="$(grep -E '^DOMAIN=' .env | head -n1 | cut -d= -f2-)"
-MS_USER="$(grep -E '^MAP_STORAGE_AUTHENTICATION_USER=' .env | head -n1 | cut -d= -f2-)"
-MS_PASS="$(grep -E '^MAP_STORAGE_AUTHENTICATION_PASSWORD=' .env | head -n1 | cut -d= -f2-)"
-BA_USER_VAL="$(grep -E '^BASIC_AUTH_USERNAME=' .env | head -n1 | cut -d= -f2- || true)"
-BA_PASS_VAL="$(grep -E '^BASIC_AUTH_PASSWORD=' .env | head -n1 | cut -d= -f2- || true)"
+DOMAIN_VAL="$(get_env DOMAIN)"
+MS_USER="$(get_env MAP_STORAGE_AUTHENTICATION_USER)"
+MS_PASS="$(get_env MAP_STORAGE_AUTHENTICATION_PASSWORD)"
+BA_USER_VAL="$(get_env BASIC_AUTH_USERNAME)"
+BA_PASS_VAL="$(get_env BASIC_AUTH_PASSWORD)"
 
 echo
 echo "==================================================================="
@@ -186,7 +185,7 @@ case "$DOMAIN_VAL" in
     echo "    インターネット公開する場合は .env の DOMAIN と ACME_EMAIL を設定し直してください。"
     ;;
   *)
-    ACME_VAL="$(grep -E '^ACME_EMAIL=' .env | head -n1 | cut -d= -f2-)"
+    ACME_VAL="$(get_env ACME_EMAIL)"
     if [ -z "$ACME_VAL" ]; then
       echo "⚠️  公開ドメインを使う場合、Let's Encrypt 用に ACME_EMAIL の設定が必要です。"
       echo "    .env を開いて ACME_EMAIL=あなたのメール を設定してください。"

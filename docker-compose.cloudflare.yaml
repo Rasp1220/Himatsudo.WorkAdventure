@@ -51,10 +51,6 @@ services:
     labels:
       traefik.http.routers.map-storage-ssl.tls.certresolver: ""
 
-  synapse:
-    labels:
-      traefik.http.routers.matrix-ssl.tls.certresolver: ""
-
   cloudflared:
     image: cloudflare/cloudflared:latest
     command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}

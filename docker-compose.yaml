@@ -115,11 +115,6 @@ services:
       - GOOGLE_DRIVE_PICKER_CLIENT_ID=${GOOGLE_DRIVE_PICKER_CLIENT_ID}
       - GOOGLE_DRIVE_PICKER_APP_ID=${GOOGLE_DRIVE_PICKER_APP_ID}
       - MAP_STORAGE_API_TOKEN=${MAP_STORAGE_API_TOKEN:-${SECRET_KEY}}
-      - MATRIX_API_URI=http://synapse:8008/
-      - MATRIX_PUBLIC_URI=https://${DOMAIN}
-      - MATRIX_ADMIN_USER
-      - MATRIX_ADMIN_PASSWORD
-      - MATRIX_DOMAIN=${DOMAIN}
       - LIVEKIT_API_KEY
       - LIVEKIT_API_SECRET
       - LIVEKIT_RECORDING_S3_ENDPOINT
@@ -166,8 +161,6 @@ services:
       traefik.http.services.room-api.loadbalancer.server.scheme: "h2c"
       traefik.http.routers.room-api.tls: "true"
       traefik.http.routers.room-api.tls.certresolver: "myresolver"
-    depends_on:
-      - synapse
     restart: ${RESTART_POLICY}
 
   back:
@@ -343,40 +336,6 @@ services:
       traefik.http.routers.map-storage-ssl.tls.certresolver: "myresolver"
     restart: ${RESTART_POLICY}
 
-  synapse:
-    image: matrixdotorg/synapse:v1.140.0
-    entrypoint: ["/bin/sh", "/config/start.sh"]
-    environment:
-      - SYNAPSE_SERVER_NAME=${DOMAIN}
-      - MATRIX_PUBLIC_BASEURL=https://${DOMAIN}/
-      # Matrix への JWT ログインに使う鍵。play / back の SECRET_KEY と同じ値。
-      - JWT_SECRET=${SECRET_KEY}
-      - MATRIX_ADMIN_USER=${MATRIX_ADMIN_USER}
-      - MATRIX_ADMIN_PASSWORD=${MATRIX_ADMIN_PASSWORD}
-      - MATRIX_REGISTRATION_SHARED_SECRET=${MATRIX_REGISTRATION_SHARED_SECRET}
-      - MATRIX_MACAROON_SECRET=${MATRIX_MACAROON_SECRET}
-      - MATRIX_FORM_SECRET=${MATRIX_FORM_SECRET}
-    volumes:
-      - ./synapse:/config:ro
-      - synapse-data:/data
-    labels:
-      traefik.enable: "true"
-      # Matrix のクライアント API は同一ドメインの /_matrix と /.well-known/matrix で配信する。
-      # play は PathPrefix(`/`) を握っているので、priority を高くして先に一致させる。
-      traefik.http.routers.matrix.rule: "Host(`${DOMAIN}`) && (PathPrefix(`/_matrix`) || PathPrefix(`/.well-known/matrix`))"
-      traefik.http.routers.matrix.entryPoints: "web"
-      traefik.http.routers.matrix.service: "matrix"
-      traefik.http.routers.matrix.priority: "1000"
-      traefik.http.services.matrix.loadbalancer.server.port: "8008"
-      traefik.http.routers.matrix-ssl.rule: "Host(`${DOMAIN}`) && (PathPrefix(`/_matrix`) || PathPrefix(`/.well-known/matrix`))"
-      traefik.http.routers.matrix-ssl.entryPoints: "websecure"
-      traefik.http.routers.matrix-ssl.service: "matrix"
-      traefik.http.routers.matrix-ssl.priority: "1000"
-      traefik.http.routers.matrix-ssl.tls: "true"
-      traefik.http.routers.matrix-ssl.tls.certresolver: "myresolver"
-    restart: ${RESTART_POLICY}
-
 volumes:
   redisdata:
   map-storage-data:
-  synapse-data:

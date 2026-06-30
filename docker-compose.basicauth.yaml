@@ -55,10 +55,3 @@ services:
     labels:
       traefik.http.routers.map-storage.middlewares: "strip-map-storage-prefix@docker,basicauth@docker"
       traefik.http.routers.map-storage-ssl.middlewares: "strip-map-storage-prefix@docker,basicauth@docker"
-
-  synapse:
-    labels:
-      # Matrix (/_matrix) にも Basic 認証を適用。ブラウザは同一オリジンの認証情報を自動送信する。
-      # （play→synapse のサーバー間通信は内部ネットワーク経由なので影響しない）
-      traefik.http.routers.matrix.middlewares: "basicauth@docker"
-      traefik.http.routers.matrix-ssl.middlewares: "basicauth@docker"

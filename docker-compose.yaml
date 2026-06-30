@@ -239,12 +239,18 @@ services:
       - AWS_URL=${AWS_URL}
       - AWS_ENDPOINT=${AWS_ENDPOINT}
       #REDIS
-      - REDIS_HOST=${UPLOADER_REDIS_HOST}
-      - REDIS_PORT=${UPLOADER_REDIS_PORT}
+      # Always reach Redis through the Docker service name so it keeps working
+      # after a restart (a hardcoded container IP becomes stale and yields
+      # ECONNREFUSED). UPLOADER_REDIS_HOST/PORT only override the defaults.
+      - REDIS_HOST=${UPLOADER_REDIS_HOST:-redis}
+      - REDIS_PORT=${UPLOADER_REDIS_PORT:-6379}
       #CHAT
       - ADMIN_API_URL=${ADMIN_API_URL}
       - ENABLE_CHAT_UPLOAD=${ENABLE_CHAT_UPLOAD}
       - UPLOAD_MAX_FILESIZE=${UPLOAD_MAX_FILESIZE}
+    depends_on:
+      redis:
+        condition: service_healthy
     labels:
       traefik.enable: "true"
       traefik.http.middlewares.strip-uploader-prefix.stripprefix.prefixes: "/uploader"
@@ -290,6 +296,12 @@ services:
     image: redis:6
     volumes:
       - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
     restart: ${RESTART_POLICY}
 
   map-storage:

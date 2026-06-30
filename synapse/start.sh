@@ -65,14 +65,18 @@ fi
   until "$PY" -c "import urllib.request; urllib.request.urlopen('http://localhost:8008/_matrix/client/versions')" >/dev/null 2>&1; do
     sleep 3
   done
-  echo "synapse: ensuring admin user '${MATRIX_ADMIN_USER}' exists"
-  # shellcheck disable=SC2086
-  $RUN_AS register_new_matrix_user \
-    -c "$CONFIG" \
-    -u "${MATRIX_ADMIN_USER}" \
-    -p "${MATRIX_ADMIN_PASSWORD}" \
-    --admin \
-    http://localhost:8008 || true
+  if [ -n "${MATRIX_ADMIN_USER:-}" ] && [ -n "${MATRIX_ADMIN_PASSWORD:-}" ]; then
+    echo "synapse: ensuring admin user '${MATRIX_ADMIN_USER}' exists"
+    # shellcheck disable=SC2086
+    $RUN_AS register_new_matrix_user \
+      -c "$CONFIG" \
+      -u "${MATRIX_ADMIN_USER}" \
+      -p "${MATRIX_ADMIN_PASSWORD}" \
+      --admin \
+      http://localhost:8008 || true
+  else
+    echo "synapse: MATRIX_ADMIN_USER or MATRIX_ADMIN_PASSWORD is unset — skipping admin registration"
+  fi
 ) &
 
 # shellcheck disable=SC2086

@@ -13,9 +13,10 @@
 ##    サービス転送先を「http://reverse-proxy:80」にしてください。
 services:
   reverse-proxy:
-    # 元の command から「HTTP→HTTPS リダイレクト」の2行だけを取り除いたもの。
-    # これで :80 がアプリをそのまま配信する（cloudflared の転送先）。
-    # 他のエントリポイント/証明書リゾルバ定義はそのまま残し、ルーターの警告を防ぐ。
+    # Cloudflare がSSLを終端するため、:80 で素のHTTPを配信するだけでよい。
+    # HTTP→HTTPS リダイレクトと ACME 証明書取得は不要（Cloudflare側が処理）。
+    # ACME設定を残すと、DNSがCloudflare経由のためHTTP challengeがNXDOMAINで
+    # 失敗し続けるのでここでは削除する。
     command:
       - --log.level=${LOG_LEVEL}
       - --providers.docker
@@ -23,9 +24,6 @@ services:
       - --entryPoints.web.address=:80
       - --entryPoints.websecure.address=:443
       - --entryPoints.grpc.address=:50051
-      - --certificatesresolvers.myresolver.acme.email=${ACME_EMAIL}
-      - --certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json
-      - --certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web
 
   cloudflared:
     image: cloudflare/cloudflared:latest

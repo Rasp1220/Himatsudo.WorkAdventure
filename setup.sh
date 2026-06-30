@@ -78,6 +78,10 @@ fill_if_empty "ROOM_API_SECRET_KEY"               "$(gen_secret)"
 fill_if_empty "MAP_STORAGE_AUTHENTICATION_PASSWORD" "$(gen_secret)"
 
 # Matrix / Synapse（チャット）用の秘密鍵・管理者パスワード
+# MATRIX_ADMIN_USER が空（古い .env に項目が無い等）だと、play が空のユーザー名で
+# Synapse にログインを試み "400 M_INVALID_PARAM: Invalid login submission" を繰り返す。
+# そのため必ず既定値 admin を補完しておく。
+fill_if_empty "MATRIX_ADMIN_USER"                 "admin"
 fill_if_empty "MATRIX_ADMIN_PASSWORD"             "$(gen_secret | head -c 24)"
 fill_if_empty "MATRIX_REGISTRATION_SHARED_SECRET" "$(gen_secret)"
 fill_if_empty "MATRIX_MACAROON_SECRET"            "$(gen_secret)"

@@ -35,9 +35,18 @@ gen_secret() {
   fi
 }
 
-# .env 内の "KEY=" が空のときだけ value を埋める
+# .env に "KEY=" が無ければ追記し、空のときだけ value を埋める。
+# （古いテンプレートから作った .env には項目自体が無いことがあるため、
+#   その場合は sed では埋められないので追記する。これを怠ると docker compose が
+#   "variable is not set. Defaulting to a blank string" の警告を出す）
 fill_if_empty() {
   local key="$1" value="$2" file=".env"
+  if ! grep -qE "^${key}=" "$file"; then
+    # キーが存在しない（古い .env など）→ 追記する
+    printf '%s=%s\n' "$key" "$value" >> "$file"
+    echo "  ✓ ${key} を追加して自動生成しました（.env に項目がありませんでした）"
+    return
+  fi
   # 現在の値を取得（KEY=... の右側）
   local current
   current="$(grep -E "^${key}=" "$file" | head -n1 | cut -d= -f2- || true)"
@@ -75,8 +84,19 @@ fill_if_empty "MATRIX_MACAROON_SECRET"            "$(gen_secret)"
 fill_if_empty "MATRIX_FORM_SECRET"                "$(gen_secret)"
 
 # ---------------------------------------------------------------------------
-# 2b. Basic 認証の自動生成（BASIC_AUTH_USERS キーが .env にある場合のみ）
+# 2b. Basic 認証の自動生成
 # ---------------------------------------------------------------------------
+# Basic 認証関連のキーが無い古い .env には項目を追加する。
+# （docker-compose.basicauth.yaml を使う場合に BASIC_AUTH_USERS が未定義だと
+#   docker compose が警告を出すため、項目自体は常に用意しておく）
+for kv in "BASIC_AUTH_USERNAME=admin" "BASIC_AUTH_PASSWORD=" "BASIC_AUTH_USERS="; do
+  ba_key="${kv%%=*}"
+  if ! grep -qE "^${ba_key}=" .env; then
+    printf '%s\n' "$kv" >> .env
+    echo "  ✓ ${ba_key} を .env に追加しました"
+  fi
+done
+
 if grep -q "^BASIC_AUTH_USERS=" .env; then
   BA_CURRENT_PASS="$(grep -E '^BASIC_AUTH_PASSWORD=' .env | head -n1 | cut -d= -f2- || true)"
   if [ -z "$BA_CURRENT_PASS" ]; then

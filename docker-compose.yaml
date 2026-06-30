@@ -117,7 +117,10 @@ services:
       - MAP_STORAGE_API_TOKEN=${MAP_STORAGE_API_TOKEN:-${SECRET_KEY}}
       - MATRIX_API_URI=http://synapse:8008/
       - MATRIX_PUBLIC_URI=https://${DOMAIN}
-      - MATRIX_ADMIN_USER
+      # 既定で admin を補完する。空のまま play に渡ると、Synapse へ空のユーザー名で
+      # ログインを送ってしまい "400 M_INVALID_PARAM: Invalid login submission" が
+      # 延々と繰り返される（古い .env に MATRIX_ADMIN_USER の項目が無い場合の保険）。
+      - MATRIX_ADMIN_USER=${MATRIX_ADMIN_USER:-admin}
       - MATRIX_ADMIN_PASSWORD
       - MATRIX_DOMAIN=${DOMAIN}
       - LIVEKIT_API_KEY
@@ -351,7 +354,9 @@ services:
       - MATRIX_PUBLIC_BASEURL=https://${DOMAIN}/
       # Matrix への JWT ログインに使う鍵。play / back の SECRET_KEY と同じ値。
       - JWT_SECRET=${SECRET_KEY}
-      - MATRIX_ADMIN_USER=${MATRIX_ADMIN_USER}
+      # 空のままだと start.sh が管理者アカウントの登録をスキップし、
+      # play からのログインが必ず失敗する。既定で admin を補完する。
+      - MATRIX_ADMIN_USER=${MATRIX_ADMIN_USER:-admin}
       - MATRIX_ADMIN_PASSWORD=${MATRIX_ADMIN_PASSWORD}
       - MATRIX_REGISTRATION_SHARED_SECRET=${MATRIX_REGISTRATION_SHARED_SECRET}
       - MATRIX_MACAROON_SECRET=${MATRIX_MACAROON_SECRET}

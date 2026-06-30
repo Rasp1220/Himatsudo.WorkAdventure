@@ -8,11 +8,24 @@
 ##   BASIC_AUTH_USERNAME / BASIC_AUTH_PASSWORD  … ブラウザのダイアログで入力する値
 ##   BASIC_AUTH_USERS                           … Traefik に渡す htpasswd 形式（自動生成）
 services:
-  play:
+  # Basic 認証ミドルウェアの「定義」は reverse-proxy（Traefik 本体）側に置く。
+  # アプリコンテナ（play 等）に定義を置くと、他コンテナ（icon / uploader / back /
+  # map-storage）が起動・再起動した瞬間にそのルーターが先に評価され、まだ play の
+  # ラベルが登録されていないタイミングで
+  #   middleware "basicauth@docker" does not exist
+  # という警告が出る（play 自身のルーターは同一コンテナ定義なので警告が出ない）。
+  # 常に最初に起動していて落ちない reverse-proxy 上に定義すれば、この競合が無くなる。
+  reverse-proxy:
     labels:
-      # Basic 認証ミドルウェアを定義（basicauth@docker として他ルーターからも参照可能）
+      # exposedbydefault=false のため、reverse-proxy のラベルを Traefik に
+      # 読ませるには traefik.enable=true が必要（ルーターは定義しないので
+      # ミドルウェアだけが登録される）。
+      traefik.enable: "true"
       traefik.http.middlewares.basicauth.basicauth.users: "${BASIC_AUTH_USERS}"
       traefik.http.middlewares.basicauth.basicauth.removeheader: "true"
+
+  play:
+    labels:
       # play（メインゲーム画面）に適用
       traefik.http.routers.play.middlewares: "basicauth@docker"
       traefik.http.routers.play-ssl.middlewares: "basicauth@docker"

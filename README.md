@@ -142,6 +142,26 @@ Cloudflare に向けてある（＝フルセットアップ。無料プランで
 
 ---
 
+## チャット（Matrix / Synapse）
+
+WorkAdventure の**永続チャット**（ルーム・ダイレクトメッセージ）は Matrix で動きます。
+このリポジトリには **Synapse（Matrix サーバー）が同梱**されており、`./start.sh` で一緒に起動します。
+
+- 追加の DNS レコードや証明書は不要です。Matrix の API は同じドメインの **`/_matrix`** で配信されます
+  （`https://<DOMAIN>/_matrix/...`）。
+- ログインは WorkAdventure が `SECRET_KEY` で署名した **JWT** で自動的に行われるため、
+  利用者が別途 Matrix にログインする必要はありません。
+- 管理者アカウントや内部秘密鍵（`MATRIX_ADMIN_PASSWORD` ほか）は `./setup.sh` が自動生成します。
+  通常は手動設定不要です。
+- Basic 認証オーバーレイ（`docker-compose.basicauth.yaml`）を使う場合、`/_matrix` にも
+  同じ Basic 認証がかかります。
+- フェデレーション（他の Matrix サーバーとの連携）は無効化した**閉じた構成**です。
+
+> **メモ:** Synapse のぶん RAM を少し多めに消費します（目安 +0.3〜0.5GB）。
+> チャットが不要な場合は `.env` の `ENABLE_CHAT=false` にし、`synapse` サービスを止めても構いません。
+
+---
+
 ## よく使うコマンド
 
 | やりたいこと | コマンド |
@@ -161,6 +181,8 @@ Cloudflare に向けてある（＝フルセットアップ。無料プランで
 .
 ├── docker-compose.yaml            WorkAdventure 一式の Compose 定義（公式 prod ベース）
 ├── docker-compose.cloudflare.yaml Cloudflare Tunnel 公開用オーバーレイ（任意）
+├── docker-compose.basicauth.yaml  サイト全体に Basic 認証をかけるオーバーレイ（任意）
+├── synapse/              Matrix(Synapse) サーバーの設定（homeserver テンプレート・起動スクリプト）
 ├── .env.template         設定テンプレート（コミット対象）
 ├── .env                  実際の設定（秘密鍵入り・自動生成、git 管理外）
 ├── setup.sh              初期セットアップ（.env 作成・秘密鍵生成）

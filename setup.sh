@@ -107,6 +107,10 @@ if grep -q "^BASIC_AUTH_USERS=" .env; then
     python3 - "$BA_PASS" "${BA_USERNAME}:${BA_HASH}" <<'PYEOF'
 import sys, re
 ba_pass, ba_users = sys.argv[1], sys.argv[2]
+# apr1 ハッシュには $ が含まれる（例: admin:$apr1$xxx$yyy）。
+# docker compose は .env 内の $ を変数参照として展開しようとし、
+# "The "apr1" variable is not set" のような警告を出すため、$ を $$ にエスケープする。
+ba_users = ba_users.replace('$', '$$')
 with open('.env') as f:
     content = f.read()
 content = re.sub(r'^BASIC_AUTH_PASSWORD=.*', 'BASIC_AUTH_PASSWORD=' + ba_pass, content, flags=re.MULTILINE)
@@ -118,6 +122,27 @@ PYEOF
   else
     echo "  - BASIC_AUTH_PASSWORD は既に設定済み（変更しません）"
   fi
+
+  # 既存の .env で BASIC_AUTH_USERS の $ がエスケープされていない場合は $$ に正規化する。
+  # （過去のバージョンの setup.sh が生成した .env や、手動で設定した値への対策。
+  #   これをしないと docker compose が起動のたびに
+  #   "The "apr1" variable is not set. Defaulting to a blank string." を出す）
+  python3 - <<'PYEOF'
+import re
+with open('.env') as f:
+    content = f.read()
+m = re.search(r'^BASIC_AUTH_USERS=(.*)$', content, flags=re.MULTILINE)
+if m:
+    val = m.group(1)
+    # $ を含むがエスケープ済み（$$）でない場合のみ正規化（冪等）
+    if val and '$' in val and '$$' not in val:
+        new_val = val.replace('$', '$$')
+        content = content.replace('BASIC_AUTH_USERS=' + val,
+                                  'BASIC_AUTH_USERS=' + new_val, 1)
+        with open('.env', 'w') as f:
+            f.write(content)
+        print('  ✓ BASIC_AUTH_USERS の $ を $$ にエスケープしました（docker compose の警告対策）')
+PYEOF
 fi
 
 # ---------------------------------------------------------------------------

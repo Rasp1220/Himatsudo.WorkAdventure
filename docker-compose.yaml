@@ -167,7 +167,8 @@ services:
       traefik.http.routers.room-api.tls: "true"
       traefik.http.routers.room-api.tls.certresolver: "myresolver"
     depends_on:
-      - synapse
+      synapse:
+        condition: service_healthy
     restart: ${RESTART_POLICY}
 
   back:
@@ -346,6 +347,12 @@ services:
   synapse:
     image: matrixdotorg/synapse:v1.140.0
     entrypoint: ["/bin/sh", "/config/start.sh"]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8008/_matrix/client/versions"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
     environment:
       - SYNAPSE_SERVER_NAME=${DOMAIN}
       - MATRIX_PUBLIC_BASEURL=https://${DOMAIN}/

@@ -78,6 +78,7 @@ fill_if_empty "ROOM_API_SECRET_KEY"               "$(gen_secret)"
 fill_if_empty "MAP_STORAGE_AUTHENTICATION_PASSWORD" "$(gen_secret)"
 
 # Matrix / Synapse（チャット）用の秘密鍵・管理者パスワード
+fill_if_empty "MATRIX_ADMIN_USER"                 "admin"
 fill_if_empty "MATRIX_ADMIN_PASSWORD"             "$(gen_secret | head -c 24)"
 fill_if_empty "MATRIX_REGISTRATION_SHARED_SECRET" "$(gen_secret)"
 fill_if_empty "MATRIX_MACAROON_SECRET"            "$(gen_secret)"

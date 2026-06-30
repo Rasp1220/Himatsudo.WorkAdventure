@@ -1,0 +1,44 @@
+## Basic 認証オーバーレイ。
+## WorkAdventure への全アクセスにユーザー名・パスワードを要求します。
+##
+## 使い方（.env の COMPOSE_FILE に追加）:
+##   COMPOSE_FILE=docker-compose.yaml:docker-compose.cloudflare.yaml:docker-compose.basicauth.yaml
+##
+## 認証情報は setup.sh が自動生成します:
+##   BASIC_AUTH_USERNAME / BASIC_AUTH_PASSWORD  … ブラウザのダイアログで入力する値
+##   BASIC_AUTH_USERS                           … Traefik に渡す htpasswd 形式（自動生成）
+services:
+  play:
+    labels:
+      # Basic 認証ミドルウェアを定義（basicauth@docker として他ルーターからも参照可能）
+      traefik.http.middlewares.basicauth.basicauth.users: "${BASIC_AUTH_USERS}"
+      traefik.http.middlewares.basicauth.basicauth.removeheader: "true"
+      # play（メインゲーム画面）に適用
+      traefik.http.routers.play.middlewares: "basicauth@docker"
+      traefik.http.routers.play-ssl.middlewares: "basicauth@docker"
+      # WebSocket にも適用（ブラウザは同一オリジンの認証情報を自動送信する）
+      traefik.http.routers.play-ws.middlewares: "basicauth@docker"
+      traefik.http.routers.play-ws-ssl.middlewares: "basicauth@docker"
+
+  back:
+    labels:
+      # ベースの strip-api-prefix を引き継ぎつつ basicauth を追加
+      traefik.http.routers.back.middlewares: "strip-api-prefix@docker,basicauth@docker"
+      traefik.http.routers.back-ssl.middlewares: "strip-api-prefix@docker,basicauth@docker"
+
+  uploader:
+    labels:
+      traefik.http.routers.uploader.middlewares: "strip-uploader-prefix@docker,basicauth@docker"
+      traefik.http.routers.uploader-ssl.middlewares: "strip-uploader-prefix@docker,basicauth@docker"
+
+  icon:
+    labels:
+      traefik.http.routers.icon.middlewares: "strip-icon-prefix@docker,basicauth@docker"
+      traefik.http.routers.icon-ssl.middlewares: "strip-icon-prefix@docker,basicauth@docker"
+      traefik.http.routers.lettericons.middlewares: "basicauth@docker"
+      traefik.http.routers.lettericons-ssl.middlewares: "basicauth@docker"
+
+  map-storage:
+    labels:
+      traefik.http.routers.map-storage.middlewares: "strip-map-storage-prefix@docker,basicauth@docker"
+      traefik.http.routers.map-storage-ssl.middlewares: "strip-map-storage-prefix@docker,basicauth@docker"

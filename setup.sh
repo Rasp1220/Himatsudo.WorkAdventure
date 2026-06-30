@@ -69,11 +69,39 @@ fill_if_empty "ROOM_API_SECRET_KEY"               "$(gen_secret)"
 fill_if_empty "MAP_STORAGE_AUTHENTICATION_PASSWORD" "$(gen_secret)"
 
 # ---------------------------------------------------------------------------
+# 2b. Basic 認証の自動生成（BASIC_AUTH_USERS キーが .env にある場合のみ）
+# ---------------------------------------------------------------------------
+if grep -q "^BASIC_AUTH_USERS=" .env; then
+  BA_CURRENT_PASS="$(grep -E '^BASIC_AUTH_PASSWORD=' .env | head -n1 | cut -d= -f2- || true)"
+  if [ -z "$BA_CURRENT_PASS" ]; then
+    BA_USERNAME="$(grep -E '^BASIC_AUTH_USERNAME=' .env | head -n1 | cut -d= -f2-)"
+    BA_USERNAME="${BA_USERNAME:-admin}"
+    BA_PASS=$(gen_secret | head -c 16)
+    BA_HASH=$(openssl passwd -apr1 "$BA_PASS")
+    python3 - "$BA_PASS" "${BA_USERNAME}:${BA_HASH}" <<'PYEOF'
+import sys, re
+ba_pass, ba_users = sys.argv[1], sys.argv[2]
+with open('.env') as f:
+    content = f.read()
+content = re.sub(r'^BASIC_AUTH_PASSWORD=.*', 'BASIC_AUTH_PASSWORD=' + ba_pass, content, flags=re.MULTILINE)
+content = re.sub(r'^BASIC_AUTH_USERS=.*', 'BASIC_AUTH_USERS=' + ba_users, content, flags=re.MULTILINE)
+with open('.env', 'w') as f:
+    f.write(content)
+PYEOF
+    echo "  ✓ BASIC_AUTH_PASSWORD / BASIC_AUTH_USERS を自動生成しました"
+  else
+    echo "  - BASIC_AUTH_PASSWORD は既に設定済み（変更しません）"
+  fi
+fi
+
+# ---------------------------------------------------------------------------
 # 3. 設定内容の確認表示
 # ---------------------------------------------------------------------------
 DOMAIN_VAL="$(grep -E '^DOMAIN=' .env | head -n1 | cut -d= -f2-)"
 MS_USER="$(grep -E '^MAP_STORAGE_AUTHENTICATION_USER=' .env | head -n1 | cut -d= -f2-)"
 MS_PASS="$(grep -E '^MAP_STORAGE_AUTHENTICATION_PASSWORD=' .env | head -n1 | cut -d= -f2-)"
+BA_USER_VAL="$(grep -E '^BASIC_AUTH_USERNAME=' .env | head -n1 | cut -d= -f2- || true)"
+BA_PASS_VAL="$(grep -E '^BASIC_AUTH_PASSWORD=' .env | head -n1 | cut -d= -f2- || true)"
 
 echo
 echo "==================================================================="
@@ -83,6 +111,11 @@ echo " DOMAIN              : ${DOMAIN_VAL}"
 echo " マップ編集ログイン  : ユーザー名 = ${MS_USER}"
 echo "                       パスワード = ${MS_PASS}"
 echo "   （WorkAdventure 上でマップ編集を保存する際に使います）"
+if [ -n "$BA_PASS_VAL" ]; then
+  echo " Basic 認証          : ユーザー名 = ${BA_USER_VAL:-admin}"
+  echo "                       パスワード = ${BA_PASS_VAL}"
+  echo "   （サイトにアクセスした際にブラウザが求めるパスワードです）"
+fi
 echo "==================================================================="
 echo
 
